@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GHOST — რას ხედავს ინტერნეტი შენზე</title>
+<style>
+:root{--bg:#000;--fg:#2bff88;--dim:#12803f;--warn:#ff3b5c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"Courier New",ui-monospace,monospace;font-size:15px;line-height:1.55}
+body{padding:16px;max-width:680px;margin:0 auto}
+h1{font-size:clamp(34px,11vw,56px);margin:8px 0 4px;letter-spacing:-1px;text-shadow:0 0 14px var(--fg)}
+.sub{color:var(--dim);margin:0 0 20px}
+body{background:transparent;position:relative}
+#mx{position:fixed;inset:0;width:100%;height:100%;z-index:-1;opacity:.4}
+.box{background:rgba(0,0,0,.82)}
+.ban{border:2px solid var(--warn);padding:14px 16px;margin:6px 0 16px;text-align:center;color:#fff;font-size:clamp(17px,5vw,24px);font-weight:bold;line-height:1.35;text-shadow:0 0 10px var(--warn);box-shadow:0 0 18px rgba(255,59,92,.5),inset 0 0 18px rgba(255,59,92,.2);animation:pl 1.8s ease-in-out infinite}
+.ban span{display:block;margin-top:8px;color:var(--warn);font-size:.8em;letter-spacing:3px}
+@keyframes pl{50%{box-shadow:0 0 4px rgba(255,59,92,.3),inset 0 0 6px rgba(255,59,92,.1)}}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tabs button,.btn{background:transparent;color:var(--fg);border:1px solid var(--fg);padding:12px 14px;font:inherit;cursor:pointer;flex:1}
+.tabs button{padding:12px 4px;font-size:13px}
+textarea{width:100%;min-height:150px;background:#000;color:var(--fg);border:1px solid var(--dim);padding:12px;font:inherit;resize:vertical}
+textarea:focus{outline:1px solid var(--fg)}
+.lnk{margin-top:10px;word-break:break-all;color:#fff;border:1px dashed var(--fg);padding:10px;font-size:13px}
+.cd{color:var(--warn);margin-top:10px}
+.tabs button.on,.btn:hover,.btn:active{background:var(--fg);color:#000}
+.box{border:1px solid var(--dim);padding:14px;min-height:260px;white-space:pre-wrap;word-break:break-word}
+.box .w{color:var(--warn)}
+.cur::after{content:"█";animation:b 1s steps(1) infinite}
+@keyframes b{50%{opacity:0}}
+.nick{font-size:clamp(24px,8vw,40px);text-align:center;margin:30px 0;text-shadow:0 0 12px var(--fg);word-break:break-all}
+.row{display:flex;gap:8px;margin-top:10px}
+.foot{margin-top:26px;color:var(--dim);font-size:13px}
+.foot .btn{width:100%;margin-top:8px;font-size:13px}
+[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.cur::after,.ban{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="mx"></canvas>
+<div class="ban">არარსებობს პროგრამა, რაც არ ტყდება<span>- MRX</span></div>
+<h1>GHOST</h1>
+<p class="sub">ინტერნეტი ყველას ხედავს. შენ რას ხედავ?</p>
+
+<div class="tabs">
+  <button id="t1" class="on">სკანერი</button>
+  <button id="t2">ზედმეტსახელი</button>
+  <button id="t3">შეტყობინება</button>
+</div>
+
+<section id="p1">
+  <div class="box" id="out">დააჭირე „სკანირებას", რომ ნახო რა ჩანს შენს შესახებ.</div>
+  <div class="row"><button class="btn" id="scan">სკანირება</button></div>
+</section>
+
+<section id="p2" hidden>
+  <div class="box" style="min-height:200px"><div class="nick" id="nick">...</div></div>
+  <div class="row">
+    <button class="btn" id="gen">ახალი სახელი</button>
+    <button class="btn" id="cp">კოპირება</button>
+  </div>
+  <div class="row"><button class="btn" id="snd">ხმა: ჩართულია</button></div>
+</section>
+
+<section id="p3" hidden>
+  <textarea id="msg" maxlength="500" placeholder="დაწერე საიდუმლო ტექსტი (მაქს. 500 სიმბოლო)"></textarea>
+  <div class="row"><button class="btn" id="mk">ლინკის შექმნა</button></div>
+  <div id="res" hidden>
+    <div class="lnk" id="lnk"></div>
+    <div class="row"><button class="btn" id="cl">ლინკის კოპირება</button></div>
+  </div>
+</section>
+
+<section id="p4" hidden>
+  <div class="box" id="rd" style="min-height:200px"></div>
+  <div class="row"><button class="btn" id="op">გახსნა</button></div>
+</section>
+
+<div class="foot">
+  ყველაფერი შენს ბრაუზერშია. ჩვენ არაფერს ვინახავთ და არავის ვუგზავნით.
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function copy(text,btn,done){
+  const ok=()=>{const o=btn.textContent;btn.textContent=done;setTimeout(()=>btn.textContent=o,1500)};
+  const fb=()=>{const t=document.createElement("textarea");t.value=text;document.body.appendChild(t);t.select();try{document.execCommand("copy");ok()}catch(e){btn.textContent="ვერ დაკოპირდა"}t.remove()};
+  try{navigator.clipboard.writeText(text).then(ok,fb)}catch(e){fb()}
+}
+
+/* tabs */
+function tab(n){
+  for(let i=1;i<=3;i++){$("p"+i).hidden=n!==i;$("t"+i).classList.toggle("on",n===i)}
+  if(n===2&&$("nick").textContent==="...")gen();
+}
+$("t1").onclick=()=>tab(1);$("t2").onclick=()=>tab(2);$("t3").onclick=()=>tab(3);
+
+/* scanner */
+let busy=false;
+async function scan(){
+  if(busy)return;busy=true;
+  const out=$("out");out.textContent="";
+  const line=async(t,cls)=>{
+    const s=document.createElement("span");if(cls)s.className=cls;out.appendChild(s);
+    for(const c of t){s.textContent+=c;await sleep(8)}
+    out.appendChild(document.createTextNode("\n"));await sleep(160);
+  };
+  await line("> კავშირი დამყარებულია...");
+  await line("> ვკითხულობ შენს მოწყობილობას...");
+  const n=navigator,sc=screen;
+  let os="უცნობი";const ua=n.userAgent;
+  if(/Android/i.test(ua))os="Android";else if(/iPhone|iPad/i.test(ua))os="iOS";else if(/Windows/i.test(ua))os="Windows";else if(/Mac/i.test(ua))os="macOS";else if(/Linux/i.test(ua))os="Linux";
+  let br="უცნობი";
+  if(/Edg\//.test(ua))br="Edge";else if(/OPR\//.test(ua))br="Opera";else if(/Chrome\//.test(ua))br="Chrome";else if(/Firefox\//.test(ua))br="Firefox";else if(/Safari\//.test(ua))br="Safari";
+  await line("სისტემა      : "+os);
+  await line("ბრაუზერი     : "+br);
+  await line("ეკრანი       : "+sc.width+"x"+sc.height+" ("+(devicePixelRatio||1)+"x)");
+  await line("ენა          : "+(n.language||"?"));
+  await line("დროის ზონა   : "+(Intl.DateTimeFormat().resolvedOptions().timeZone||"?"));
+  await line("ანაბეჭდი     : "+fp(),"w");
+  await line("> ეს შენი უნიკალური ID-ა. საიტებს შენი ამოცნობა VPN-ის გარეშეც შეუძლიათ.");
+  if(n.hardwareConcurrency)await line("პროცესორი    : "+n.hardwareConcurrency+" ბირთვი");
+  if(n.deviceMemory)await line("მეხსიერება   : ~"+n.deviceMemory+" GB");
+  if(n.connection&&n.connection.effectiveType)await line("ქსელი        : "+n.connection.effectiveType);
+  try{if(n.getBattery){const b=await n.getBattery();await line("ბატარეა      : "+Math.round(b.level*100)+"%")}}catch(e){}
+  await line("> ვეძებ შენს IP მისამართს...");
+  try{
+    const c=new AbortController();setTimeout(()=>c.abort(),5000);
+    const r=await fetch("https://ipapi.co/json/",{signal:c.signal});
+    const d=await r.json();
+    if(!d.ip)throw 0;
+    await line("IP           : "+d.ip,"w");
+    await line("ქალაქი       : "+(d.city||"?")+", "+(d.country_name||"?"));
+    await line("პროვაიდერი   : "+(d.org||"?"));
+  }catch(e){
+    await line("IP           : ვერ ვიპოვე (ტესტ-რეჟიმში ბლოკირებულია)","w");
+  }
+  await line("> სკანირება დასრულდა. ეს ყველაფერი ყველა საიტს შეუძლია ნახოს.");
+  const cur=document.createElement("span");cur.className="cur";out.appendChild(cur);
+  busy=false;
+}
+$("scan").onclick=scan;
+
+/* nickname generator */
+const A=["Ghost","Shadow","Silent","Dark","Null","Void","Phantom","Cipher","Static","Neon","Rogue","Zero","Hollow","Glitch","Ash"];
+const B=["Viper","Wolf","Raven","Byte","Fox","Echo","Node","Specter","Hawk","Root","Pulse","Wraith","Cobra","Proxy","Ninja"];
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+function gen(){
+  const sep=pick(["_","","-","."]);
+  const num=pick(["",""," ".trim(),String(Math.floor(Math.random()*999)).padStart(3,"0")]);
+  $("nick").textContent=pick(A)+sep+pick(B)+(num?sep+num:"");
+  say();
+}
+/* robot voice */
+let snd=true;
+if(window.speechSynthesis){speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>{}}
+function say(){
+  if(!snd||!window.speechSynthesis)return;
+  const sy=speechSynthesis;sy.cancel();
+  const vs=sy.getVoices();
+  const en=vs.find(v=>/^en/i.test(v.lang)&&/male|david|daniel|alex|mark|george/i.test(v.name))||vs.find(v=>/^en/i.test(v.lang));
+  const ka=vs.find(v=>/^ka/i.test(v.lang));
+  const nm=$("nick").textContent.replace(/[_.\-]/g," ");
+  const mk=(t,v,l)=>{const u=new SpeechSynthesisUtterance(t);if(v)u.voice=v;u.lang=v?v.lang:l;u.pitch=.2;u.rate=.8;return u};
+  sy.speak(mk(nm,en,"en-US"));
+  if(ka)sy.speak(mk("არარსებობს პროგრამა, რაც არ ტყდება. თქვა მფლობელმა ემერექსმა.",ka,"ka-GE"));
+  else sy.speak(mk("There is no program that cannot be broken. Said the owner, M R X.",en,"en-US"));
+}
+$("snd").onclick=e=>{snd=!snd;if(!snd&&window.speechSynthesis)speechSynthesis.cancel();e.target.textContent=snd?"ხმა: ჩართულია":"ხმა: გამორთულია"};
+$("gen").onclick=gen;
+$("cp").onclick=e=>copy($("nick").textContent,e.target,"დაკოპირდა");
+
+/* self-destruct message */
+function b64e(s){let r="";new TextEncoder().encode(s).forEach(x=>r+=String.fromCharCode(x));return btoa(r).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+function b64d(t){t=t.replace(/-/g,"+").replace(/_/g,"/");while(t.length%4)t+="=";return new TextDecoder().decode(Uint8Array.from(atob(t),c=>c.charCodeAt(0)))}
+function hsh(s){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))|0;return "g_"+(h>>>0)}
+
+$("mk").onclick=()=>{
+  const t=$("msg").value.trim();
+  if(!t){$("msg").focus();return}
+  $("lnk").textContent=location.href.split("#")[0]+"#"+b64e(t);
+  $("res").hidden=false;
+};
+$("cl").onclick=e=>copy($("lnk").textContent,e.target,"დაკოპირდა");
+
+function fp(){
+  let s=[navigator.userAgent,screen.width,screen.height,navigator.language,Intl.DateTimeFormat().resolvedOptions().timeZone,navigator.hardwareConcurrency].join("|");
+  try{const k=document.createElement("canvas").getContext("2d");k.font="14px Arial";k.fillText("ghost",2,14);s+=k.canvas.toDataURL()}catch(e){}
+  let h=5381;for(const ch of s)h=((h<<5)+h+ch.charCodeAt(0))|0;
+  return (h>>>0).toString(16).toUpperCase().padStart(8,"0").replace(/(....)(....)/,"$1-$2");
+}
+
+/* matrix rain */
+(function(){
+  const c=$("mx"),x=c.getContext("2d");let dr;
+  const ch="01ABCDEF{}<>/#$%";
+  function rs(){c.width=innerWidth;c.height=innerHeight;dr=Array(Math.floor(c.width/16)).fill(0).map(()=>Math.random()*-50)}
+  rs();addEventListener("resize",rs);
+  if(matchMedia("(prefers-reduced-motion:reduce)").matches)return;
+  setInterval(()=>{
+    x.fillStyle="rgba(0,0,0,.08)";x.fillRect(0,0,c.width,c.height);
+    x.fillStyle="#2bff88";x.font="14px monospace";
+    dr.forEach((y,i)=>{x.fillText(ch[Math.floor(Math.random()*ch.length)],i*16,y*16);dr[i]=y*16>c.height&&Math.random()>.975?0:y+1});
+  },60);
+})();
+
+const tok=location.hash.slice(1);
+if(tok.length>3){
+  document.querySelector(".tabs").hidden=true;
+  $("p1").hidden=true;$("p4").hidden=false;
+  const rd=$("rd");
+  rd.textContent="ვიღაცამ საიდუმლო შეტყობინება გამოგიგზავნა.\n\nგახსნის შემდეგ ის 20 წამით ჩანს და სამუდამოდ ქრება. მეორედ ვეღარ გაიხსნება.";
+  let used=false;try{used=!!localStorage.getItem(hsh(tok))}catch(e){}
+  if(used){rd.textContent="ეს შეტყობინება უკვე გაიხსნა და განადგურდა.";$("op").hidden=true}
+  $("op").onclick=()=>{
+    let txt;try{txt=b64d(tok)}catch(e){rd.textContent="ლინკი დაზიანებულია.";$("op").hidden=true;return}
+    try{localStorage.setItem(hsh(tok),"1")}catch(e){}
+    try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}
+    $("op").hidden=true;
+    rd.textContent=txt;
+    const cd=document.createElement("div");cd.className="cd";rd.appendChild(document.createTextNode("\n\n"));rd.appendChild(cd);
+    let s=20;cd.textContent="განადგურდება: "+s+" წმ";
+    const iv=setInterval(()=>{
+      s--;
+      if(s>0){cd.textContent="განადგურდება: "+s+" წმ";return}
+      clearInterval(iv);rd.textContent="შეტყობინება განადგურდა.";
+    },1000);
+  };
+}
+</script>
+</body>
+</html>
